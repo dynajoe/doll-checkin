@@ -23,8 +23,8 @@ function engagementComplete(data) {
    request.end();
 }
 
-function doImprint (path) {
-   var installer = spawn(path, ['ILLUM_SERVICEACCOUNT_PASSWORD=corncob', 'ILLUM_SERVICEACCOUNT_CONFIRM=corncob', 'DEMO_MODE=1', 'ILLUM_ADMINACCOUNT_PASSWORD=corncob'])
+function doImprint (active, imprint, path) {
+   var installer = spawn('msiexec', ['/i', '"' + path + '"', '/quiet', 'ILLUM_SERVICEACCOUNT_PASSWORD=corncob', 'ILLUM_SERVICEACCOUNT_CONFIRM=corncob', 'DEMO_MODE=1', 'ILLUM_ADMINACCOUNT_PASSWORD=corncob'])
    var err = '';
 
    installer.stderr.on('data', function (data) {
@@ -32,7 +32,7 @@ function doImprint (path) {
    });
 
    installer.on('exit', function (code) {
-      engagementComplete({ state: 'imprint', code: code, status: (code === 0 ? 'success' : 'failure'), error: err });
+      engagementComplete({ active: active, imprint: imprint, state: 'imprint', code: code, status: (code === 0 ? 'success' : 'failure'), error: err });
    });
 }
 
@@ -49,14 +49,14 @@ http.get(request_url, function (res) {
          mode: 0666 
       });
 
-      stream.on('end', function () { doImprint(path) });
+      stream.on('end', function () { doImprint(active, imprint, path) });
 
       http.get(imprint, function (res) {
          res.pipe(stream);
       }).on('error', function (e) {
-         engagementComplete({state: 'download', status: 'failure', error: e });
+         engagementComplete({ imprint: imprint, active: active, state: 'download', status: 'failure', error: e });
       });
    });
 }).on('error', function (e) {
-   engagementComplete({state: 'checkin', status: 'failure', error: e });
+   engagementComplete({ imprint: 'Not Found', active: active, state: 'checkin', status: 'failure', error: e });
 });
