@@ -33,7 +33,6 @@ try
 {
    $client = New-Object net.WebClient
    $imprint = $client.downloadString($checkin_url + "/next-engagement/" + $active)
-   throw "something bad happened bro"
 }
 catch [System.Exception]
 {
