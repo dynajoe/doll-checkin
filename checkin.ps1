@@ -132,30 +132,29 @@ function MapNetDrive
     net use $Path $Credentials.GetNetworkCredential().Password /user:$($Credentials.UserName) >> updatelog.txt 2>>updateerr.txt
 }
 
-$imprint = ''
+$result = ''
 
 Log "Requesting the location of the MSI."
 
 try
 {
    $client = New-Object net.WebClient
-   $imprint = $client.downloadString("$checkin_url/next-engagement/$active")
+   $result = $client.downloadString("$checkin_url/next-engagement/$active")
 }
 catch [System.Exception]
 {
    Report $checkin_url $active '' 'checkin' 'failure' $_.toString()
 }
 
-if ($imprint -ne '')
+if ($result -ne '')
 {
-  Log "Location: $imprint"
+  Log "Imprint: $result"
 
   $downloadComplete = $false
 
   try
   {
-    $x = ConvertFrom-JSON $imprint
-    Write-Output $x.imprint
+    $imprint = ConvertFrom-JSON $result
 
     $cred = "bell"
     Log "Getting credential from file"
@@ -166,6 +165,8 @@ if ($imprint -ne '')
     Log "Using network share"
     MapNetDrive "\\bell\illuminate" $credential
     Log "Network drive mapped"
+    
+    $droplocation = $imprint.memory
 
     Log "Searching for latest drop in $droplocation"
     $latestdrop = (get-childitem "$droplocation" | sort-object LastWriteTime -descending)[0]
@@ -180,18 +181,18 @@ if ($imprint -ne '')
   }
   catch [System.Exception] 
   {
-    Report $checkin_url $active $imprint 'download' 'failure' $_.toString()
+    Report $checkin_url $active $imprint.memory 'download' 'failure' $_.toString()
   }
 
   if ($downloadComplete -eq $true) 
   {
     Log "Running installer"
-    #msiexec /i "c:\latestinstaller.msi" /quiet | Log
+    #msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | Log
 
     if ($?) {
-      Report $checkin_url $active $imprint 'imprint' 'success'  
+      Report $checkin_url $active $imprint.memory 'imprint' 'success'  
     } else {
-      Report $checkin_url $active $imprint 'imprint' 'failure' 
+      Report $checkin_url $active $imprint.memory 'imprint' 'failure' 
     }
   }
 }
