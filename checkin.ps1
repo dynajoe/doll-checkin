@@ -183,7 +183,7 @@ if ($result -ne '')
 
     Log "Searching for msi drop in $latestdrop"
     $msi = get-childitem -recurse $latestdrop.FullName IlluminateServerSetup*.msi
-    
+
     Log "Copying $msi.FullName"
     Copy-Item $msi.FullName "c:/latestinstaller.msi"
 
@@ -200,7 +200,7 @@ if ($result -ne '')
 
     if ($install -eq $true) 
     {
-      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | Log
+      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet
     }
 
     if ($?) {
