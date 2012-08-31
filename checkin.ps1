@@ -104,9 +104,11 @@ Function Report
         [string]$imprint = "unknown",
         [string]$state = "unknown",
         [string]$status = "unknown",
-        [string]$error = "")
+        [string]$exception = "")
+  
+   $exception = $exception.Replace('"', "'")
 
-   $data = "{ ""active"": ""$active"", ""state"": ""$state"", ""status"": ""$status"", ""imprint"": ""$imprint"", ""error"": ""$error"" }"
+   $data = "{ ""active"": ""$active"", ""state"": ""$state"", ""status"": ""$status"", ""imprint"": ""$imprint"", ""error"": ""$exception"" }"
    $client = New-Object net.WebClient
    $report_url = "$url/engagement-complete/"
    Log "Reporting to $report_url: $data"
