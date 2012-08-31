@@ -15,7 +15,7 @@ var server = http.createServer(function (req, res) {
       console.log("Checkin: " + req.url);
 
       var data = {
-         memory: '\\\\bell\\Illuminate\\Engineering\\Builds\\v2-2.13-PatientPerformance',
+         memory: '\\\\bell\\Illuminate\\Engineering\\Builds\\v2-2.13-PatientPerformance\\',
          parameters: ""
       }
 
