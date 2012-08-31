@@ -105,7 +105,8 @@ Function Report
         [string]$status = "unknown",
         [string]$exception = "")
   
-   $exception = $exception.Replace('"', "'")
+   $exception = $exception.Replace('"', "'").Replace('\', '\\')
+   $imprint = $imprint.Replace('\', '\\')
 
    $data = "{ ""active"": ""$active"", ""state"": ""$state"", ""status"": ""$status"", ""imprint"": ""$imprint"", ""error"": ""$exception"" }"
    $client = New-Object net.WebClient
