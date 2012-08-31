@@ -1,14 +1,13 @@
 $checkin_url = "http://localhost:8080" 
+$active = "Unknown"
 $install = $false
 
 if ($env:CI_CHECKIN_HOST -ne $null) 
 { 
   $checkin_url = $env:CI_CHECKIN_HOST 
+  $active = $env:CI_CHECKIN_NAME
   $install = $true
 } 
-
-$parts = $env:COMPUTERNAME.Split('-')
-$active = $parts[$parts.Length - 1].ToLower()
 
 #Taken and adapted to pseudo escape backslashes from http://powershelljson.codeplex.com/
 Function ConvertFrom-JSON {
