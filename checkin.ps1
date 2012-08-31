@@ -1,8 +1,93 @@
-Import-Module Deployment
-
-$checkin_url = if($env:CI_CHECKIN_URL -eq "") { "http://localhost:8080" } else { $env:CI_CHECKIN_URL }
+$checkin_url = if($env:CI_CHECKIN_HOST -eq "") { "http://localhost:8080" } else { $env:CI_CHECKIN_HOST }
 $parts = $env:COMPUTERNAME.Split('-')
-$active = $parts[$parts.Length - 1]
+$active = $parts[$parts.Length - 1].ToLower()
+
+#Taken and adapted to pseudo escape backslashes from http://powershelljson.codeplex.com/
+Function ConvertFrom-JSON {
+    param(
+        $json,
+        [switch]$raw  
+    )
+
+    Begin
+    {
+      $script:startStringState = $false
+      $script:valueState = $false
+      $script:arrayState = $false 
+      $script:saveArrayState = $false
+      $script:lastChar = ""
+      $script:escaping = $false
+
+      function scan-characters ($c) {
+        switch -regex ($c)
+        {
+          "{" { 
+            "(New-Object PSObject "
+            $script:saveArrayState=$script:arrayState
+            $script:valueState=$script:startStringState=$script:arrayState=$false       
+            $script:lastChar=""
+              }
+          "}" { ")"; $script:arrayState=$script:saveArrayState }
+
+          '"' {
+            if($script:startStringState -eq $false -and $script:valueState -eq $false -and $script:arrayState -eq $false) {
+              '| Add-Member -Passthru NoteProperty "'
+            }
+            else { '"';$script:lastChar="" }
+
+            $script:startStringState = $true
+          }
+
+          "[a-z0-9A-Z@._\-\\ ]" { 
+            
+            if ($script:lastChar -eq '\' -and $c -eq '\') {
+              '\'
+              $script:lastChar=''
+            } 
+            elseif ($c -eq '\') { 
+              $script:lastChar=$c
+            }
+            else {
+              $c
+              $script:lastChar=$c 
+            }
+          }
+
+          ":" {" " ;$script:valueState = $true }
+          "," {
+            if($script:arrayState) { "," }
+            else { $script:valueState = $false; $script:startStringState = $false }
+          } 
+          "\[" { "@("; $script:arrayState = $true }
+          "\]" { ")"; $script:arrayState = $false }
+          "[\t\r\n]" {}
+        }
+      }
+      
+      function parse($target)
+      {
+        $result = ""
+        ForEach($c in $target.ToCharArray()) {  
+          $result += scan-characters $c
+        }
+        $result   
+      }
+    }
+
+    Process { 
+        if($_) { $result = parse $_ } 
+    }
+
+    End { 
+        If($json) { $result = parse $json }
+
+        If(-Not $raw) {
+            $result | Invoke-Expression
+        } else {
+            $result 
+        }
+    }
+}
 
 Function Report
 {
@@ -65,16 +150,48 @@ if ($imprint -ne '')
 {
   Log "Location: $imprint"
 
-  $cred = "bell"
-  Log "Getting credential from file"
-  $user = get-content "c:\$cred.user"
-  $pswd = get-content "c:\$cred.cred" | convertto-securestring
-  $credential = new-object -typename System.Management.Automation.PSCredential -argumentlist $user,$pswd
-  Log "Using network share"
-  MapNetDrive "\\bell\illuminate" $credential
-  Log "Network drive mapped"
-  Log "Running install-latest"
-  #Install-Latest $imprint 'c:\latestinstaller.msi'
+  $downloadComplete = $false
 
-  Report $checkin_url $active $imprint 'imprint' 'success'  
+  try
+  {
+    $x = ConvertFrom-JSON $imprint
+    Write-Output $x.imprint
+
+    $cred = "bell"
+    Log "Getting credential from file"
+    $user = get-content "c:\$cred.user"
+    $pswd = get-content "c:\$cred.cred" | convertto-securestring
+    $credential = new-object -typename System.Management.Automation.PSCredential -argumentlist $user,$pswd
+
+    Log "Using network share"
+    MapNetDrive "\\bell\illuminate" $credential
+    Log "Network drive mapped"
+
+    Log "Searching for latest drop in $droplocation"
+    $latestdrop = (get-childitem "$droplocation" | sort-object LastWriteTime -descending)[0]
+
+    Log "Searching for msi drop in $latestdrop"
+    $msi = get-childitem -recurse $latestdrop.FullName IlluminateServerSetup*.msi
+
+    Log "Copying $msi.FullName"
+    Copy-Item $msi.FullName $msilocation
+
+    $downloadComplete = $true
+  }
+  catch [System.Exception] 
+  {
+    Report $checkin_url $active $imprint 'download' 'failure' $_.toString()
+  }
+
+  if ($downloadComplete -eq $true) 
+  {
+    Log "Running installer"
+    #msiexec /i "c:\latestinstaller.msi" /quiet | Log
+
+    if ($?) {
+      Report $checkin_url $active $imprint 'imprint' 'success'  
+    } else {
+      Report $checkin_url $active $imprint 'imprint' 'failure' 
+    }
+  }
 }

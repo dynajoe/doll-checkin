@@ -13,7 +13,14 @@ var server = http.createServer(function (req, res) {
 
    } else if (req.url.match(/next-engagement/)) {
       console.log("Checkin: " + req.url);
-      res.end("http://illum-ci-leeroy/job/ActKnowledge%20Demo%20Generation/lastSuccessfulBuild/artifact/Softek.Demo.Web.Setup/bin/Release/Softek.Demo.Web.Setup.wixlib");
+
+      var data = {
+         imprint: '\\\\bell\\Illuminate\\Engineering\\Builds\\v2-2.13-PatientPerformance',
+         parameters: "NONE"
+      }
+      console.log(data.imprint)
+      console.log(JSON.stringify(data));
+      res.end(JSON.stringify(data));
    }
 });
 
