@@ -200,7 +200,7 @@ if ($result -ne '')
 
     if ($install -eq $true) 
     {
-      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet
+      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | add-content "c:\updatelog.txt"
     }
 
     if ($?) {
