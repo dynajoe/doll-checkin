@@ -15,11 +15,10 @@ var server = http.createServer(function (req, res) {
       console.log("Checkin: " + req.url);
 
       var data = {
-         imprint: '\\\\bell\\Illuminate\\Engineering\\Builds\\v2-2.13-PatientPerformance',
-         parameters: "NONE"
+         memory: '\\\\bell\\Illuminate\\Engineering\\Builds\\v2-2.13-PatientPerformance',
+         parameters: ""
       }
-      console.log(data.imprint)
-      console.log(JSON.stringify(data));
+
       res.end(JSON.stringify(data));
    }
 });

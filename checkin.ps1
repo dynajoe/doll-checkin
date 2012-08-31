@@ -1,4 +1,12 @@
-$checkin_url = if($env:CI_CHECKIN_HOST -eq "") { "http://localhost:8080" } else { $env:CI_CHECKIN_HOST }
+$checkin_url = "http://localhost:8080" 
+$install = $false
+
+if ($env:CI_CHECKIN_HOST -ne $null) 
+{ 
+  $checkin_url = $env:CI_CHECKIN_HOST 
+  $install = $true
+} 
+
 $parts = $env:COMPUTERNAME.Split('-')
 $active = $parts[$parts.Length - 1].ToLower()
 
@@ -187,7 +195,11 @@ if ($result -ne '')
   if ($downloadComplete -eq $true) 
   {
     Log "Running installer"
-    #msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | Log
+
+    if ($install -eq $true) 
+    {
+      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | Log
+    }
 
     if ($?) {
       Report $checkin_url $active $imprint.memory 'imprint' 'success'  
