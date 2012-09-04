@@ -112,8 +112,6 @@ if ($imprint -ne '')
       msiexec /l*v install.log /i "c:\latestinstaller.msi" $env:CI_MSI_PARAMETERS.Split(" ") /quiet | add-content "c:\updatelog.txt"
     }
     
-    $!
-    $_
     if ($?) {
       Report $checkin_url $active $imprint 'imprint' 'success'  
     } else {
