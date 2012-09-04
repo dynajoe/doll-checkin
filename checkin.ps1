@@ -9,93 +9,6 @@ if ($env:CI_CHECKIN_HOST -ne $null)
   $install = $true
 } 
 
-#Taken and adapted to pseudo escape backslashes from http://powershelljson.codeplex.com/
-Function ConvertFrom-JSON {
-    param(
-        $json,
-        [switch]$raw  
-    )
-
-    Begin
-    {
-      $script:startStringState = $false
-      $script:valueState = $false
-      $script:arrayState = $false 
-      $script:saveArrayState = $false
-      $script:lastChar = ""
-      $script:escaping = $false
-
-      function scan-characters ($c) {
-        switch -regex ($c)
-        {
-          "{" { 
-            "(New-Object PSObject "
-            $script:saveArrayState=$script:arrayState
-            $script:valueState=$script:startStringState=$script:arrayState=$false       
-            $script:lastChar=""
-              }
-          "}" { ")"; $script:arrayState=$script:saveArrayState }
-
-          '"' {
-            if($script:startStringState -eq $false -and $script:valueState -eq $false -and $script:arrayState -eq $false) {
-              '| Add-Member -Passthru NoteProperty "'
-            }
-            else { '"';$script:lastChar="" }
-
-            $script:startStringState = $true
-          }
-
-          "[a-z0-9A-Z@._\-\\ ]" { 
-            
-            if ($script:lastChar -eq '\' -and $c -eq '\') {
-              '\'
-              $script:lastChar=''
-            } 
-            elseif ($c -eq '\') { 
-              $script:lastChar=$c
-            }
-            else {
-              $c
-              $script:lastChar=$c 
-            }
-          }
-
-          ":" {" " ;$script:valueState = $true }
-          "," {
-            if($script:arrayState) { "," }
-            else { $script:valueState = $false; $script:startStringState = $false }
-          } 
-          "\[" { "@("; $script:arrayState = $true }
-          "\]" { ")"; $script:arrayState = $false }
-          "[\t\r\n]" {}
-        }
-      }
-      
-      function parse($target)
-      {
-        $result = ""
-        ForEach($c in $target.ToCharArray()) {  
-          $result += scan-characters $c
-        }
-        $result   
-      }
-    }
-
-    Process { 
-        if($_) { $result = parse $_ } 
-    }
-
-    End { 
-        If($json) { $result = parse $json }
-
-        If(-Not $raw) {
-            $result | Invoke-Expression
-        } else {
-            $result 
-        }
-    }
-}
-
 Function Report
 {
   param([string]$url = "unknown",
@@ -142,30 +55,28 @@ function MapNetDrive
     net use $Path $Credentials.GetNetworkCredential().Password /user:$($Credentials.UserName) >> updatelog.txt 2>>updateerr.txt
 }
 
-$result = ''
+$imprint = ''
 
 Log "Requesting the location of the MSI."
 
 try
 {
    $client = New-Object net.WebClient
-   $result = $client.downloadString("$checkin_url/next-engagement/$active")
+   $imprint = $client.downloadString("$checkin_url/next-engagement/$active")
 }
 catch [System.Exception]
 {
    Report $checkin_url $active '' 'checkin' 'failure' $_.toString()
 }
 
-if ($result -ne '')
+if ($imprint -ne '')
 {
-  Log "Imprint: $result"
+  Log "Imprint: $imprint"
 
   $downloadComplete = $false
 
   try
   {
-    $imprint = ConvertFrom-JSON $result
-
     $cred = "bell"
     Log "Getting credential from file"
     $user = get-content "c:\$cred.user"
@@ -175,11 +86,9 @@ if ($result -ne '')
     Log "Using network share"
     MapNetDrive "\\bell\illuminate" $credential
     Log "Network drive mapped"
-    
-    $droplocation = $imprint.memory
 
-    Log "Searching for latest drop in $droplocation"
-    $latestdrop = (get-childitem "$droplocation" | sort-object LastWriteTime -descending)[0]
+    Log "Searching for latest drop in $imprint"
+    $latestdrop = (get-childitem "$imprint" | sort-object LastWriteTime -descending)[0]
 
     Log "Searching for msi drop in $latestdrop"
     $msi = get-childitem -recurse $latestdrop.FullName IlluminateServerSetup*.msi
@@ -191,7 +100,7 @@ if ($result -ne '')
   }
   catch [System.Exception] 
   {
-    Report $checkin_url $active $imprint.memory 'download' 'failure' $_.toString()
+    Report $checkin_url $active $imprint 'download' 'failure' $_.toString()
   }
 
   if ($downloadComplete -eq $true) 
@@ -200,13 +109,13 @@ if ($result -ne '')
 
     if ($install -eq $true) 
     {
-      msiexec /i "c:\latestinstaller.msi" $imprint.parameters /quiet | add-content "c:\updatelog.txt"
+      msiexec /i "c:\latestinstaller.msi" $env:CI_MSI_PARAMETERS.Split(" ") /quiet | add-content "c:\updatelog.txt"
     }
 
     if ($?) {
-      Report $checkin_url $active $imprint.memory 'imprint' 'success'  
+      Report $checkin_url $active $imprint 'imprint' 'success'  
     } else {
-      Report $checkin_url $active $imprint.memory 'imprint' 'failure' 
+      Report $checkin_url $active $imprint 'imprint' 'failure' 
     }
   }
 }
